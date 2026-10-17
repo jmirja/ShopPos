@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ShopPos.Application/ShopPos.Application.csproj" />
+    <Project Path="src/ShopPos.Desktop/ShopPos.Desktop.csproj" />
+    <Project Path="src/ShopPos.Domain/ShopPos.Domain.csproj" />
+    <Project Path="src/ShopPos.Infrastructure/ShopPos.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ShopPos.Tests/ShopPos.Tests.csproj" />
+  </Folder>
+</Solution>
