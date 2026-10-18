@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace ShopPos.Domain.Entities;
+﻿namespace ShopPos.Domain.Entities;
 
 public partial class RepairStatusHistory
 {

@@ -1,9 +1,10 @@
-﻿using System.Windows;
-using Microsoft.EntityFrameworkCore;
+using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ShopPos.Application.Auth;
+using ShopPos.Desktop.ViewModels;
+using ShopPos.Desktop.Views;
 using ShopPos.Infrastructure;
-using ShopPos.Infrastructure.Persistence;
 
 namespace ShopPos.Desktop;
 
@@ -16,6 +17,9 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // We open windows from code, so the app must not quit when the first dialog closes.
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
         try
         {
             _host = Host.CreateDefaultBuilder()
@@ -23,20 +27,50 @@ public partial class App : System.Windows.Application
                 .ConfigureServices((context, services) =>
                 {
                     services.AddInfrastructure(context.Configuration);
-                    services.AddSingleton<MainWindow>();
+
+                    services.AddSingleton<ICurrentUser, CurrentUser>();
+
+                    services.AddTransient<LoginViewModel>();
+                    services.AddTransient<FirstRunViewModel>();
+                    services.AddTransient<MainViewModel>();
+
+                    services.AddTransient<LoginWindow>();
+                    services.AddTransient<FirstRunWindow>();
+                    services.AddTransient<MainWindow>();
                 })
                 .Build();
 
             await _host.StartAsync();
 
-            // Smoke test: read the roles table to prove the database connection works.
-            var factory = _host.Services.GetRequiredService<IDbContextFactory<ShopPosDbContext>>();
-            await using var db = await factory.CreateDbContextAsync();
-            var roleCount = await db.Roles.CountAsync();
+            var sp = _host.Services;
+            var auth = sp.GetRequiredService<IAuthService>();
 
-            var window = _host.Services.GetRequiredService<MainWindow>();
-            window.Title = $"Shop POS - connected ({roleCount} roles)";
-            window.Show();
+            // First run: no accounts yet, so create the owner account.
+            if (!await auth.HasAnyUserAsync())
+            {
+                var firstRun = sp.GetRequiredService<FirstRunWindow>();
+                if (firstRun.ShowDialog() != true)
+                {
+                    Shutdown();
+                    return;
+                }
+            }
+
+            // Login -> main window. "Log out" brings the login window back.
+            while (true)
+            {
+                var login = sp.GetRequiredService<LoginWindow>();
+                if (login.ShowDialog() != true) break;           // window closed = exit app
+
+                var main = sp.GetRequiredService<MainWindow>();
+                main.ShowDialog();                                // returns when the window closes
+
+                var mainVm = (MainViewModel)main.DataContext;
+                sp.GetRequiredService<ICurrentUser>().SignOut();
+                if (!mainVm.LoggedOut) break;                     // closed with X = exit app
+            }
+
+            Shutdown();
         }
         catch (Exception ex)
         {

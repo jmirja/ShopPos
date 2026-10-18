@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ShopPos.Application.Auth;
 using ShopPos.Infrastructure.Persistence;
+using ShopPos.Infrastructure.Security;
+using ShopPos.Infrastructure.Services;
 
 namespace ShopPos.Infrastructure;
  
@@ -17,6 +20,9 @@ public static class DependencyInjection
  
         services.AddDbContextFactory<ShopPosDbContext>(options =>
             options.UseMySql(cs, serverVersion));
+
+        services.AddSingleton<PasswordHasher>();
+        services.AddSingleton<IAuthService, AuthService>();    
  
         return services;
     }

@@ -1,12 +1,80 @@
-﻿<Window x:Class="ShopPos.Desktop.MainWindow"
+<Window x:Class="ShopPos.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:ShopPos.Desktop"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        xmlns:vm="clr-namespace:ShopPos.Desktop.ViewModels"
+        Title="Shop POS" Height="720" Width="1180" MinHeight="560" MinWidth="900"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized">
 
-    </Grid>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="8,3"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+
+        <!-- How a PlaceholderViewModel is drawn. Real screens will get their own templates later. -->
+        <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
+            <StackPanel Margin="32">
+                <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Message}" FontSize="15" Margin="0,12,0,0"
+                           Foreground="#555" TextWrapping="Wrap"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Top bar -->
+        <Border DockPanel.Dock="Top" Background="#1F2937" Padding="16,10">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Log out" Padding="14,4"
+                        Command="{Binding LogoutCommand}"/>
+                <TextBlock DockPanel.Dock="Right" Margin="0,0,16,0" VerticalAlignment="Center"
+                           Foreground="White">
+                    <Run Text="{Binding User.FullName, Mode=OneWay}"/>
+                    <Run Text=" ("/><Run Text="{Binding User.Role, Mode=OneWay}"/><Run Text=")"/>
+                </TextBlock>
+                <TextBlock Text="Shop POS" Foreground="White" FontSize="18"
+                           FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Left menu -->
+        <Border DockPanel.Dock="Left" Width="220" Background="#F3F4F6">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,8">
+                    <Button Style="{StaticResource NavButton}" Content="Home"
+                            Command="{Binding NavigateCommand}" CommandParameter="Home"/>
+                    <Button Style="{StaticResource NavButton}" Content="Billing"
+                            Command="{Binding NavigateCommand}" CommandParameter="Billing"/>
+                    <Button Style="{StaticResource NavButton}" Content="Inventory"
+                            Visibility="{Binding CanManageStock, Converter={StaticResource BoolToVis}}"
+                            Command="{Binding NavigateCommand}" CommandParameter="Inventory"/>
+                    <Button Style="{StaticResource NavButton}" Content="Repairs"
+                            Command="{Binding NavigateCommand}" CommandParameter="Repairs"/>
+                    <Button Style="{StaticResource NavButton}" Content="Money Transfer"
+                            Command="{Binding NavigateCommand}" CommandParameter="Money Transfer"/>
+                    <Button Style="{StaticResource NavButton}" Content="Parcels"
+                            Command="{Binding NavigateCommand}" CommandParameter="Parcels"/>
+                    <Button Style="{StaticResource NavButton}" Content="Customers"
+                            Command="{Binding NavigateCommand}" CommandParameter="Customers"/>
+                    <Button Style="{StaticResource NavButton}" Content="Suppliers &amp; Purchases"
+                            Visibility="{Binding CanManageStock, Converter={StaticResource BoolToVis}}"
+                            Command="{Binding NavigateCommand}" CommandParameter="Suppliers &amp; Purchases"/>
+                    <Button Style="{StaticResource NavButton}" Content="Accounting"
+                            Visibility="{Binding CanSeeAccounting, Converter={StaticResource BoolToVis}}"
+                            Command="{Binding NavigateCommand}" CommandParameter="Accounting"/>
+                    <Button Style="{StaticResource NavButton}" Content="Settings"
+                            Visibility="{Binding CanSeeSettings, Converter={StaticResource BoolToVis}}"
+                            Command="{Binding NavigateCommand}" CommandParameter="Settings"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Page area: shows whatever CurrentPage is -->
+        <ContentControl Content="{Binding CurrentPage}"/>
+    </DockPanel>
 </Window>
