@@ -30,10 +30,16 @@ public partial class App : System.Windows.Application
 
                     services.AddSingleton<ICurrentUser, CurrentUser>();
 
+                    // View-models
                     services.AddTransient<LoginViewModel>();
                     services.AddTransient<FirstRunViewModel>();
                     services.AddTransient<MainViewModel>();
+                    services.AddTransient<HomeViewModel>();
+                    services.AddTransient<ProductsViewModel>();
+                    services.AddTransient<CategoriesViewModel>();
+                    services.AddTransient<StockViewModel>();
 
+                    // Windows
                     services.AddTransient<LoginWindow>();
                     services.AddTransient<FirstRunWindow>();
                     services.AddTransient<MainWindow>();

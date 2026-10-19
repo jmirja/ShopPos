@@ -10,5 +10,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.LogoutRequested += Close;   // "Log out" simply closes this window
+
+        // Open the Home screen as soon as the window appears.
+        Loaded += async (_, _) => await viewModel.NavigateCommand.ExecuteAsync("Home");
     }
 }

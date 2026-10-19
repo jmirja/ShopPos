@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using ShopPos.Application.Auth;
 
 namespace ShopPos.Desktop.ViewModels;
@@ -9,11 +10,12 @@ public record PlaceholderViewModel(string Title, string Message);
 
 public partial class MainViewModel : ObservableObject
 {
-    public MainViewModel(ICurrentUser user)
+    private readonly IServiceProvider _services;
+
+    public MainViewModel(ICurrentUser user, IServiceProvider services)
     {
         User = user;
-        _currentPage = new PlaceholderViewModel(
-            "Home", $"Welcome, {user.FullName}. Choose a module from the menu on the left.");
+        _services = services;
     }
 
     public ICurrentUser User { get; }
@@ -29,10 +31,47 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private object? _currentPage;
 
     [RelayCommand]
-    private void Navigate(string? page)
+    private async Task NavigateAsync(string? page)
     {
-        var title = page ?? "Home";
-        CurrentPage = new PlaceholderViewModel(title, $"The {title} screen will be built in a later step.");
+        switch (page)
+        {
+            case "Home":
+            case null:
+            {
+                var vm = _services.GetRequiredService<HomeViewModel>();
+                vm.NavigateToLowStock = () => _ = NavigateAsync("LowStock");
+                CurrentPage = vm;
+                await vm.LoadAsync();
+                break;
+            }
+            case "Products":
+            {
+                var vm = _services.GetRequiredService<ProductsViewModel>();
+                CurrentPage = vm;
+                await vm.LoadAsync();
+                break;
+            }
+            case "Categories":
+            {
+                var vm = _services.GetRequiredService<CategoriesViewModel>();
+                CurrentPage = vm;
+                await vm.LoadAsync();
+                break;
+            }
+            case "Stock":
+            case "LowStock":
+            {
+                var vm = _services.GetRequiredService<StockViewModel>();
+                CurrentPage = vm;
+                await vm.LoadAsync(lowOnly: page == "LowStock");
+                break;
+            }
+            default:
+            {
+                CurrentPage = new PlaceholderViewModel(page, $"The {page} screen will be built in a later step.");
+                break;
+            }
+        }
     }
 
     [RelayCommand]
