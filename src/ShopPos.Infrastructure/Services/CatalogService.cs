@@ -24,7 +24,7 @@ public class CatalogService : ICatalogService
         await using var db = await _factory.CreateDbContextAsync();
         return await db.Categories.AsNoTracking()
             .OrderBy(c => c.Name)
-            .Select(c => new CategoryDto(c.Id, c.Name, c.ParentCategoryId, c.IsActive ?? true))
+            .Select(c => new CategoryDto(c.Id, c.Name, c.ParentCategoryId, c.IsActive ?? false))
             .ToListAsync();
     }
 
@@ -111,7 +111,7 @@ public class CatalogService : ICatalogService
                 p.ProductType,
                 p.Brand,
                 db.ProductVariants.Count(v => v.ProductId == p.Id),
-                p.IsActive ?? true))
+                p.IsActive ?? false))
             .ToListAsync();
     }
 
@@ -126,11 +126,11 @@ public class CatalogService : ICatalogService
             .Where(v => v.ProductId == id)
             .OrderBy(v => v.Sku)
             .Select(v => new VariantDto(v.Id, v.Sku, v.Barcode, v.VariantName,
-                v.CostPrice, v.SellingPrice, v.ReorderLevel, v.IsActive ?? true))
+                v.CostPrice, v.SellingPrice, v.ReorderLevel, v.IsActive ?? false))
             .ToListAsync();
 
         return new ProductDetail(p.Id, p.Name, p.CategoryId, p.ProductType, p.Brand,
-            p.TracksSerial, p.TracksBatch, p.IsActive ?? true, variants);
+            p.TracksSerial, p.TracksBatch, p.IsActive ?? false, variants);
     }
 
     public async Task<Guid> SaveProductAsync(ProductDetail d)
@@ -171,6 +171,16 @@ public class CatalogService : ICatalogService
             entity = await db.Products.FirstOrDefaultAsync(p => p.Id == d.Id)
                      ?? throw new BusinessRuleException("This product no longer exists.");
             entity.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Changing IMEI / batch tracking after stock exists would make stock and IMEI/batch lists disagree.
+        if (!isNew
+            && (entity.TracksSerial != (isStock && d.TracksSerial) || entity.TracksBatch != (isStock && d.TracksBatch))
+            && await db.StockMovements.AnyAsync(m =>
+                   db.ProductVariants.Any(v => v.Id == m.VariantId && v.ProductId == entity.Id)))
+        {
+            throw new BusinessRuleException(
+                "You cannot change IMEI / batch tracking after stock has been recorded for this product.");
         }
 
         entity.Name = name;

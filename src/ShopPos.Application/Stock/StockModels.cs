@@ -3,7 +3,7 @@ namespace ShopPos.Application.Stock;
 public enum StockAction
 {
     Opening,     // stock you already had on the shelf when you started using the app
-    Add,         // found / returned to shelf
+    Add,         // found / returned to shelf / new stock
     Damaged,
     Lost,
     SetCount     // you counted the shelf; the system corrects itself to your count
@@ -26,6 +26,28 @@ public record MovementRow(DateTime CreatedAtUtc, string MovementType, decimal Qt
     public string Change => QtyChange > 0 ? $"+{QtyChange:0.###}" : $"{QtyChange:0.###}";
 }
 
+public record SerialRow(Guid Id, string SerialNo, string Status, DateTime CreatedAtUtc)
+{
+    public string Added => DateTime.SpecifyKind(CreatedAtUtc, DateTimeKind.Utc).ToLocalTime().ToString("dd MMM yyyy");
+}
+
+public record BatchRow(Guid Id, string BatchNo, DateOnly? ExpiryDate, decimal QtyOnHand)
+{
+    public string ExpiryText => ExpiryDate?.ToString("dd MMM yyyy") ?? "";
+
+    public string Status
+    {
+        get
+        {
+            if (ExpiryDate is not { } e) return "";
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            if (e < today) return "Expired";
+            if (e <= today.AddDays(30)) return "Expiring soon";
+            return "OK";
+        }
+    }
+}
+
 public record StockAdjustmentRequest(Guid VariantId, StockAction Action, decimal Quantity, string? Note);
 
 public interface IStockService
@@ -35,8 +57,18 @@ public interface IStockService
 
     Task<int> CountLowStockAsync();
 
-    /// <summary>Records one stock movement. Returns the new quantity on hand.</summary>
+    /// <summary>Quantity-only items. Records one stock movement and returns the new quantity on hand.</summary>
     Task<decimal> AdjustStockAsync(StockAdjustmentRequest request);
 
     Task<List<MovementRow>> GetMovementsAsync(Guid variantId, int take = 20);
+
+    // ---- IMEI / serial tracked items ----
+    Task<List<SerialRow>> GetSerialsAsync(Guid variantId, bool includeAll);
+    Task<int> AddSerialsAsync(Guid variantId, IReadOnlyList<string> serials, bool isOpening, string? note);
+    Task RemoveSerialAsync(Guid serialItemId, string? note);
+
+    // ---- batch / expiry tracked items ----
+    Task<List<BatchRow>> GetBatchesAsync(Guid variantId);
+    Task AddBatchStockAsync(Guid variantId, string batchNo, DateOnly? expiry, decimal quantity, bool isOpening, string? note);
+    Task RemoveBatchStockAsync(Guid batchId, decimal quantity, string reason, string? note);
 }
