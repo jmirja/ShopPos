@@ -195,6 +195,20 @@ public partial class ProductsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Saved variants that have a barcode, ready for the label printing window.</summary>
+    public List<LabelLine> GetLabelLines()
+    {
+        var title = string.IsNullOrWhiteSpace(Name) ? "Product" : Name.Trim();
+
+        return Variants
+            .Where(v => v.Id != Guid.Empty && !string.IsNullOrWhiteSpace(v.Barcode))
+            .Select(v => new LabelLine(
+                string.IsNullOrWhiteSpace(v.VariantName) ? title : $"{title} {v.VariantName!.Trim()}",
+                v.Barcode,
+                v.SellingPrice))
+            .ToList();
+    }
+
     [RelayCommand]
     private async Task SaveAsync()
     {

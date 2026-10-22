@@ -117,8 +117,11 @@
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,12,0,0"/>
                 <TextBlock Text="{Binding InfoMessage}" Foreground="#15803D" TextWrapping="Wrap" Margin="0,12,0,0"/>
 
-                <Button Content="Save product" Command="{Binding SaveCommand}" HorizontalAlignment="Left"
-                        Padding="28,8" Margin="0,16,0,24"/>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,24">
+                    <Button Content="Save product" Command="{Binding SaveCommand}"
+                            Padding="28,8" Margin="0,0,12,0"/>
+                    <Button Content="Print barcode labels..." Click="PrintLabels_Click" Padding="20,8"/>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Grid>
