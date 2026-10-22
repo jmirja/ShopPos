@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopPos.Application.Auth;
+using ShopPos.Application.Billing;
 using ShopPos.Application.Catalog;
 using ShopPos.Application.Stock;
 using ShopPos.Infrastructure.Persistence;
@@ -26,7 +27,8 @@ public static class DependencyInjection
         services.AddSingleton<PasswordHasher>();
         services.AddSingleton<IAuthService, AuthService>();
         services.AddSingleton<ICatalogService, CatalogService>();
-        services.AddSingleton<IStockService, StockService>();    
+        services.AddSingleton<IStockService, StockService>();
+        services.AddSingleton<IBillingService, BillingService>();    
  
         return services;
     }

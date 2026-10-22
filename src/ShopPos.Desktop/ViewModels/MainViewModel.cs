@@ -11,6 +11,7 @@ public record PlaceholderViewModel(string Title, string Message);
 public partial class MainViewModel : ObservableObject
 {
     private readonly IServiceProvider _services;
+    private BillingViewModel? _billing;     // one per login, so the bill is not lost when you open another screen
 
     public MainViewModel(ICurrentUser user, IServiceProvider services)
     {
@@ -42,6 +43,13 @@ public partial class MainViewModel : ObservableObject
                 vm.NavigateToLowStock = () => _ = NavigateAsync("LowStock");
                 CurrentPage = vm;
                 await vm.LoadAsync();
+                break;
+            }
+            case "Billing":
+            {
+                _billing ??= _services.GetRequiredService<BillingViewModel>();
+                CurrentPage = _billing;
+                await _billing.LoadAsync();
                 break;
             }
             case "Products":
