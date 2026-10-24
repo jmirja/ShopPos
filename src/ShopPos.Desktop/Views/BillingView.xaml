@@ -121,30 +121,48 @@
             </DataGrid>
         </DockPanel>
 
-        <!-- Right: totals -->
-        <Border Grid.Column="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
-                CornerRadius="8" Padding="20" VerticalAlignment="Top">
-            <StackPanel>
-                <TextBlock Text="This bill" FontSize="18" FontWeight="SemiBold"/>
+        <!-- Right: customer, totals, pay -->
+        <StackPanel Grid.Column="1" VerticalAlignment="Top">
+            <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="20">
+                <StackPanel>
+                    <TextBlock Text="This bill" FontSize="18" FontWeight="SemiBold"/>
 
-                <DockPanel Margin="0,16,0,0">
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding ItemCount, StringFormat=0.###}"/>
-                    <TextBlock Text="Items"/>
-                </DockPanel>
-                <DockPanel Margin="0,8,0,0">
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding Subtotal, StringFormat=N2}"/>
-                    <TextBlock Text="Subtotal"/>
-                </DockPanel>
+                    <DockPanel Margin="0,16,0,0">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding ItemCount, StringFormat=0.###}"/>
+                        <TextBlock Text="Items"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,8,0,0">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Subtotal, StringFormat=N2}"/>
+                        <TextBlock Text="Subtotal"/>
+                    </DockPanel>
 
-                <Separator Margin="0,14"/>
+                    <Separator Margin="0,14"/>
 
-                <TextBlock Text="Total" FontSize="14" Foreground="#666"/>
-                <TextBlock Text="{Binding Total, StringFormat=N2}" FontSize="36" FontWeight="Bold"/>
+                    <TextBlock Text="Total" FontSize="14" Foreground="#666"/>
+                    <TextBlock Text="{Binding Total, StringFormat=N2}" FontSize="36" FontWeight="Bold"/>
 
-                <Button Content="Pay (coming in the next step)" IsEnabled="False" Padding="0,12" Margin="0,20,0,0"/>
-                <Button Content="Clear bill" Click="ClearBill_Click" Padding="0,8" Margin="0,8,0,0"
-                        IsEnabled="{Binding HasItems}"/>
-            </StackPanel>
-        </Border>
+                    <Separator Margin="0,14"/>
+
+                    <TextBlock Text="Customer" FontSize="12" Foreground="#666"/>
+                    <TextBlock Text="{Binding CustomerText}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Choose / add customer" Click="ChooseCustomer_Click" Padding="12,5"/>
+                        <Button Content="Remove" Command="{Binding RemoveCustomerCommand}" Padding="12,5" Margin="8,0,0,0"
+                                Visibility="{Binding HasCustomer, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
+
+                    <Button Content="Pay  (F12)" Click="Pay_Click" Padding="0,12" FontSize="16" FontWeight="SemiBold"
+                            Margin="0,20,0,0" IsEnabled="{Binding HasItems}"/>
+                    <Button Content="Clear bill" Click="ClearBill_Click" Padding="0,8" Margin="0,8,0,0"
+                            IsEnabled="{Binding HasItems}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#ECFDF5" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8" Padding="16"
+                    Margin="0,16,0,0" Visibility="{Binding HasLastSale, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding LastSaleText}" FontSize="16" FontWeight="SemiBold" Foreground="#065F46"
+                           TextWrapping="Wrap"/>
+            </Border>
+        </StackPanel>
     </Grid>
 </UserControl>

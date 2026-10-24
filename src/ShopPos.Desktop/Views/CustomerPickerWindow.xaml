@@ -1,0 +1,48 @@
+<Window x:Class="ShopPos.Desktop.Views.CustomerPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose customer" Width="560" Height="640" WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Choose customer" FontSize="22" FontWeight="SemiBold"/>
+
+        <TextBox x:Name="SearchBox" Grid.Row="1" Padding="8" Margin="0,14,0,8" FontSize="15"
+                 ToolTip="Search by name or phone number"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
+
+        <DataGrid x:Name="ResultsGrid" Grid.Row="2" ItemsSource="{Binding Results}" SelectedItem="{Binding Selected}"
+                  IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                  HeadersVisibility="Column" SelectionMode="Single" MouseDoubleClick="ResultsGrid_MouseDoubleClick">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="160"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Button Grid.Row="3" Content="Use selected customer" HorizontalAlignment="Left" Padding="20,8"
+                Margin="0,10,0,0" Click="UseButton_Click"/>
+
+        <GroupBox Grid.Row="4" Header="New customer" Margin="0,18,0,0" Padding="10">
+            <StackPanel>
+                <TextBlock Text="Name *" Margin="0,0,0,4"/>
+                <TextBox Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                <TextBlock Text="Phone" Margin="0,10,0,4"/>
+                <TextBox Text="{Binding NewPhone, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                <Button Content="Add and use" HorizontalAlignment="Left" Padding="20,8" Margin="0,12,0,0"
+                        Click="AddButton_Click"/>
+            </StackPanel>
+        </GroupBox>
+
+        <TextBlock Grid.Row="5" Text="{Binding ErrorMessage}" Foreground="#B91C1C" TextWrapping="Wrap"
+                   Margin="0,10,0,0"/>
+    </Grid>
+</Window>

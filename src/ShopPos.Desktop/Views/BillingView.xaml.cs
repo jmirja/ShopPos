@@ -23,13 +23,17 @@ public partial class BillingView : UserControl
             if (DataContext is BillingViewModel vm) vm.FocusSearchRequested -= FocusSearchBox;
         };
 
-        // F2 jumps back to the search box from anywhere on the screen;
-        // the Down arrow moves from the search box into the list of matches.
+        // F2 = back to the search box, F12 = pay, Down arrow = from the search box into the matches.
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.F2)
             {
                 FocusSearchBox();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F12)
+            {
+                Pay_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
             else if (e.Key == Key.Down && SearchBox.IsKeyboardFocused)
@@ -44,6 +48,28 @@ public partial class BillingView : UserControl
     {
         SearchBox.Focus();
         SearchBox.CaretIndex = SearchBox.Text.Length;
+    }
+
+    private async void Pay_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not BillingViewModel vm) return;
+
+        var payment = await vm.PreparePaymentAsync();
+        if (payment is null) return;
+
+        var window = new PaymentWindow(payment) { Owner = Window.GetWindow(this) };
+        if (window.ShowDialog() == true)
+            await vm.CompleteSaleAsync(payment);
+    }
+
+    private void ChooseCustomer_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not BillingViewModel vm) return;
+
+        var picker = vm.CreateCustomerPicker();
+        var window = new CustomerPickerWindow(picker) { Owner = Window.GetWindow(this) };
+        if (window.ShowDialog() == true && picker.Chosen is not null)
+            vm.Customer = picker.Chosen;
     }
 
     private void ClearBill_Click(object sender, RoutedEventArgs e)

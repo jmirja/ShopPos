@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ShopPos.Application.Billing;
+using ShopPos.Application.Customers;
+using ShopPos.Application.Sales;
 
 namespace ShopPos.Desktop.ViewModels;
 
@@ -51,13 +54,17 @@ public partial class CartLine : ObservableObject
 public partial class BillingViewModel : ObservableObject
 {
     private readonly IBillingService _billing;
+    private readonly ISalesService _sales;
+    private readonly ICustomerService _customers;
     private CancellationTokenSource? _searchCts;
     private bool _allowNegative;
     private bool _adjusting;
 
-    public BillingViewModel(IBillingService billing)
+    public BillingViewModel(IBillingService billing, ISalesService sales, ICustomerService customers)
     {
         _billing = billing;
+        _sales = sales;
+        _customers = customers;
 
         Cart.CollectionChanged += (_, e) =>
         {
@@ -65,6 +72,10 @@ public partial class BillingViewModel : ObservableObject
                 foreach (CartLine l in e.OldItems) l.PropertyChanged -= OnLinePropertyChanged;
             if (e.NewItems is not null)
                 foreach (CartLine l in e.NewItems) l.PropertyChanged += OnLinePropertyChanged;
+
+            // starting a new bill: the "sale saved" message of the previous one is no longer needed
+            if (e.Action == NotifyCollectionChangedAction.Add) LastSaleText = null;
+
             Recalculate();
         };
 
@@ -86,8 +97,21 @@ public partial class BillingViewModel : ObservableObject
     [ObservableProperty] private decimal _itemCount;
     [ObservableProperty] private bool _hasItems;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CustomerText))]
+    [NotifyPropertyChangedFor(nameof(HasCustomer))]
+    private CustomerDto? _customer;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasLastSale))] private string? _lastSaleText;
+
     public bool HasResults => Results.Count > 0;
+    public bool HasLastSale => LastSaleText is not null;
+    public bool HasCustomer => Customer is not null;
     public decimal Total => Subtotal;           // discounts and VAT will be added later
+
+    public string CustomerText => Customer is null
+        ? "Walk-in customer"
+        : string.IsNullOrWhiteSpace(Customer.Phone) ? Customer.Name : $"{Customer.Name} ({Customer.Phone})";
 
     public async Task LoadAsync()
     {
@@ -306,8 +330,88 @@ public partial class BillingViewModel : ObservableObject
         Cart.Clear();
         Results.Clear();
         SearchText = string.Empty;
+        Customer = null;
         ErrorMessage = null;
         InfoMessage = null;
+        FocusSearchRequested?.Invoke();
+    }
+
+    // ============================================================== customer
+
+    public CustomerPickerViewModel CreateCustomerPicker() => new(_customers);
+
+    [RelayCommand]
+    private void RemoveCustomer() => Customer = null;
+
+    // ============================================================== paying
+
+    /// <summary>Checks the bill and returns the view-model for the payment window (null if the bill cannot be paid yet).</summary>
+    public async Task<PaymentViewModel?> PreparePaymentAsync()
+    {
+        ErrorMessage = null;
+        InfoMessage = null;
+
+        if (Cart.Count == 0)
+        {
+            ErrorMessage = "The bill is empty.";
+            return null;
+        }
+        if (Total <= 0)
+        {
+            ErrorMessage = "The bill total must be greater than zero.";
+            return null;
+        }
+
+        try
+        {
+            var methods = await _sales.GetPaymentMethodsAsync();
+            if (methods.Count == 0)
+            {
+                ErrorMessage = "No payment methods are set up.";
+                return null;
+            }
+
+            return new PaymentViewModel(Total, methods, HasCustomer);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+            return null;
+        }
+    }
+
+    /// <summary>Saves the sale after the payment window was confirmed.</summary>
+    public async Task CompleteSaleAsync(PaymentViewModel payment)
+    {
+        ErrorMessage = null;
+        InfoMessage = null;
+
+        try
+        {
+            var request = new CompleteSaleRequest(
+                Customer?.Id,
+                Cart.Select(l => new SaleLineRequest(l.VariantId, l.SerialItemId, l.Qty, l.UnitPrice)).ToList(),
+                payment.BuildPayments(),
+                null);
+
+            var done = await _sales.CompleteSaleAsync(request);
+
+            Cart.Clear();
+            Results.Clear();
+            SearchText = string.Empty;
+            Customer = null;
+
+            var text = $"Sale {done.InvoiceNo} saved.";
+            if (done.Change > 0) text += $"\nChange to give: {done.Change:N2}";
+            if (done.Due > 0) text += $"\nDue added to the customer: {done.Due:N2}";
+            LastSaleText = text;
+        }
+        catch (Exception ex)
+        {
+            // the bill is kept so the cashier can fix the problem and try again
+            ErrorMessage = UiErrors.Describe(ex);
+        }
+
         FocusSearchRequested?.Invoke();
     }
 }

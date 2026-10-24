@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using ShopPos.Application.Auth;
 using ShopPos.Application.Billing;
 using ShopPos.Application.Catalog;
+using ShopPos.Application.Customers;
+using ShopPos.Application.Sales;
 using ShopPos.Application.Stock;
 using ShopPos.Infrastructure.Persistence;
 using ShopPos.Infrastructure.Security;
@@ -28,7 +30,9 @@ public static class DependencyInjection
         services.AddSingleton<IAuthService, AuthService>();
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<IStockService, StockService>();
-        services.AddSingleton<IBillingService, BillingService>();    
+        services.AddSingleton<IBillingService, BillingService>();
+        services.AddSingleton<ISalesService, SalesService>();
+        services.AddSingleton<ICustomerService, CustomerService>();    
  
         return services;
     }
