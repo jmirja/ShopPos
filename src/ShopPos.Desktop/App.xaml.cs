@@ -41,6 +41,7 @@ public partial class App : System.Windows.Application
                     services.AddTransient<CategoriesViewModel>();
                     services.AddTransient<StockViewModel>();
                     services.AddTransient<BillingViewModel>();
+                    services.AddTransient<CustomersViewModel>();
 
                     // Windows
                     services.AddTransient<LoginWindow>();
