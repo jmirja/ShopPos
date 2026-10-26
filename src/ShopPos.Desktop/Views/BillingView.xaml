@@ -123,6 +123,20 @@
 
         <!-- Right: customer, totals, pay -->
         <StackPanel Grid.Column="1" VerticalAlignment="Top">
+            <!-- Shift / cash drawer -->
+            <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8"
+                    Padding="14" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="{Binding ShiftText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <Button Content="Open shift" Click="OpenShift_Click" Padding="12,5" Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            Visibility="{Binding HasNoOpenShift, Converter={StaticResource BoolToVis}}"/>
+                    <Button Content="Close shift" Click="CloseShift_Click" Padding="12,5" Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            Visibility="{Binding HasOpenShift, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+            </Border>
+
             <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="20">
                 <StackPanel>
                     <TextBlock Text="This bill" FontSize="18" FontWeight="SemiBold"/>
@@ -155,6 +169,19 @@
                             Margin="0,20,0,0" IsEnabled="{Binding HasItems}"/>
                     <Button Content="Clear bill" Click="ClearBill_Click" Padding="0,8" Margin="0,8,0,0"
                             IsEnabled="{Binding HasItems}"/>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="Hold bill (F6)" Click="Hold_Click" Padding="0,8"
+                                IsEnabled="{Binding HasItems}"/>
+                        <Button Grid.Column="2" Content="{Binding HeldButtonText}" Click="HeldBills_Click" Padding="0,8"/>
+                    </Grid>
+                    <Button Content="Reprint last receipt" Click="Reprint_Click" Padding="0,8" Margin="0,8,0,0"/>
+                    <Button Content="Void a sale..." Click="Void_Click" Padding="0,8" Margin="0,8,0,0"
+                            Visibility="{Binding CanVoid, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
             </Border>
 

@@ -2,6 +2,7 @@ using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ShopPos.Application.Auth;
+using ShopPos.Desktop.Receipts;
 using ShopPos.Desktop.ViewModels;
 using ShopPos.Desktop.Views;
 using ShopPos.Infrastructure;
@@ -29,6 +30,7 @@ public partial class App : System.Windows.Application
                     services.AddInfrastructure(context.Configuration);
 
                     services.AddSingleton<ICurrentUser, CurrentUser>();
+                    services.AddSingleton<ReceiptCoordinator>();
 
                     // View-models
                     services.AddTransient<LoginViewModel>();

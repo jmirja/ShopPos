@@ -3,9 +3,12 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ShopPos.Application.Auth;
 using ShopPos.Application.Billing;
 using ShopPos.Application.Customers;
 using ShopPos.Application.Sales;
+using ShopPos.Application.Shifts;
+using ShopPos.Desktop.Receipts;
 
 namespace ShopPos.Desktop.ViewModels;
 
@@ -56,12 +59,23 @@ public partial class BillingViewModel : ObservableObject
     private readonly IBillingService _billing;
     private readonly ISalesService _sales;
     private readonly ICustomerService _customers;
+    private readonly IShiftService _shifts;
+    private readonly IHeldBillService _held;
+    private readonly ISaleVoidService _voids;
+    private readonly ICurrentUser _currentUser;
     private CancellationTokenSource? _searchCts;
     private bool _allowNegative;
     private bool _adjusting;
 
-    public BillingViewModel(IBillingService billing, ISalesService sales, ICustomerService customers)
+    public BillingViewModel(IBillingService billing, ISalesService sales, ICustomerService customers,
+        ReceiptCoordinator receipts, IShiftService shifts, IHeldBillService held, ISaleVoidService voids,
+        ICurrentUser currentUser)
     {
+        Receipts = receipts;
+        _shifts = shifts;
+        _held = held;
+        _voids = voids;
+        _currentUser = currentUser;
         _billing = billing;
         _sales = sales;
         _customers = customers;
@@ -81,6 +95,9 @@ public partial class BillingViewModel : ObservableObject
 
         Results.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasResults));
     }
+
+    /// <summary>Prints or previews receipts (used by the billing view after a sale).</summary>
+    public ReceiptCoordinator Receipts { get; }
 
     public ObservableCollection<CartLine> Cart { get; } = new();
     public ObservableCollection<LookupMatch> Results { get; } = new();
@@ -123,6 +140,9 @@ public partial class BillingViewModel : ObservableObject
         {
             ErrorMessage = UiErrors.Describe(ex);
         }
+
+        await RefreshShiftAsync();
+        await RefreshHeldCountAsync();
         FocusSearchRequested?.Invoke();
     }
 
@@ -327,13 +347,18 @@ public partial class BillingViewModel : ObservableObject
     [RelayCommand]
     private void Clear()
     {
+        ResetBill();
+        ErrorMessage = null;
+        InfoMessage = null;
+        FocusSearchRequested?.Invoke();
+    }
+
+    private void ResetBill()
+    {
         Cart.Clear();
         Results.Clear();
         SearchText = string.Empty;
         Customer = null;
-        ErrorMessage = null;
-        InfoMessage = null;
-        FocusSearchRequested?.Invoke();
     }
 
     // ============================================================== customer
@@ -381,8 +406,9 @@ public partial class BillingViewModel : ObservableObject
     }
 
     /// <summary>Saves the sale after the payment window was confirmed.</summary>
-    public async Task CompleteSaleAsync(PaymentViewModel payment)
+    public async Task<CompletedSale?> CompleteSaleAsync(PaymentViewModel payment)
     {
+        CompletedSale? saved = null;
         ErrorMessage = null;
         InfoMessage = null;
 
@@ -395,6 +421,7 @@ public partial class BillingViewModel : ObservableObject
                 null);
 
             var done = await _sales.CompleteSaleAsync(request);
+            saved = done;
 
             Cart.Clear();
             Results.Clear();
@@ -413,5 +440,222 @@ public partial class BillingViewModel : ObservableObject
         }
 
         FocusSearchRequested?.Invoke();
+        return saved;
     }
+
+    // ================================================================== shift
+
+    private ShiftInfo? _openShift;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasNoOpenShift))] private bool _hasOpenShift;
+    [ObservableProperty] private string _shiftText = "Shift: checking...";
+
+    public bool HasNoOpenShift => !HasOpenShift;
+
+    public async Task RefreshShiftAsync()
+    {
+        try
+        {
+            _openShift = await _shifts.GetOpenShiftAsync();
+            HasOpenShift = _openShift is not null;
+            ShiftText = _openShift is null
+                ? "Shift: not open"
+                : $"Shift open since {_openShift.OpenedAtText}\nOpening cash: {_openShift.OpeningCash:N2}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+        }
+    }
+
+    /// <summary>True when payments are allowed: either shifts are not required, or this cashier has an open shift.</summary>
+    public async Task<bool> IsShiftOkAsync()
+    {
+        try
+        {
+            if (!await _shifts.IsShiftRequiredAsync()) return true;
+            return await _shifts.GetOpenShiftAsync() is not null;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+            return false;
+        }
+    }
+
+    public async Task<bool> OpenShiftAsync(decimal openingCash)
+    {
+        ErrorMessage = null;
+        try
+        {
+            await _shifts.OpenShiftAsync(openingCash);
+            await RefreshShiftAsync();
+            InfoMessage = "Shift opened.";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+            return false;
+        }
+    }
+
+    public async Task<ShiftSummary?> GetShiftSummaryAsync()
+    {
+        ErrorMessage = null;
+        try
+        {
+            var summary = await _shifts.GetOpenShiftSummaryAsync();
+            if (summary is null) ErrorMessage = "You do not have an open shift.";
+            return summary;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+            return null;
+        }
+    }
+
+    public ShiftCloseViewModel CreateShiftCloseViewModel(ShiftSummary summary) => new(_shifts, summary);
+
+    public async Task AfterShiftClosedAsync(ShiftSummary closed)
+    {
+        var difference = closed.Difference ?? 0;
+        var verdict = difference == 0 ? "no difference" : difference > 0 ? $"over by {difference:N2}" : $"short by {-difference:N2}";
+        InfoMessage = $"Shift closed. Expected {closed.ExpectedCash:N2}, counted {closed.CountedCash:N2}: {verdict}.";
+        await RefreshShiftAsync();
+    }
+
+    // ============================================================ held bills
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HeldButtonText))] private int _heldCount;
+
+    public string HeldButtonText => HeldCount > 0 ? $"Held bills ({HeldCount})" : "Held bills";
+
+    public async Task RefreshHeldCountAsync()
+    {
+        try
+        {
+            HeldCount = await _held.CountAsync();
+        }
+        catch
+        {
+            // the counter is only a convenience; never let it break the screen
+        }
+    }
+
+    private List<SaleLineRequest> BuildLineRequests() =>
+        Cart.Select(l => new SaleLineRequest(l.VariantId, l.SerialItemId, l.Qty, l.UnitPrice)).ToList();
+
+    /// <summary>Puts the current bill on one side so the next customer can be served.</summary>
+    public async Task<bool> HoldAsync(string? note)
+    {
+        ErrorMessage = null;
+        InfoMessage = null;
+
+        if (Cart.Count == 0)
+        {
+            ErrorMessage = "There is nothing to hold: the bill is empty.";
+            return false;
+        }
+
+        try
+        {
+            var text = string.IsNullOrWhiteSpace(note) ? Customer?.Name : note;
+            await _held.HoldAsync(new HoldRequest(Customer?.Id, text, BuildLineRequests()));
+
+            ResetBill();
+            await RefreshHeldCountAsync();
+            InfoMessage = "Bill put on hold. You can bring it back with Held bills.";
+            FocusSearchRequested?.Invoke();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+            return false;
+        }
+    }
+
+    public HeldBillsViewModel CreateHeldBillsViewModel() => new(_held);
+
+    /// <summary>Loads a held bill back into the cart. Items that cannot be sold any more are left out and reported.</summary>
+    public async Task ResumeAsync(HeldBill bill)
+    {
+        ErrorMessage = null;
+        InfoMessage = null;
+
+        if (Cart.Count > 0)
+        {
+            ErrorMessage = "Finish or hold the current bill first, then resume the other one.";
+            return;
+        }
+
+        try
+        {
+            var warnings = new List<string>();
+
+            foreach (var l in bill.Lines)
+            {
+                var item = await _billing.GetSellableItemAsync(l.VariantId);
+                if (item is null)
+                {
+                    warnings.Add("An item is no longer available and was left out.");
+                    continue;
+                }
+
+                CartLine line;
+                if (l.SerialItemId is Guid serialId)
+                {
+                    // the sale itself checks again that this IMEI is still in stock
+                    line = new CartLine(item, serialId, l.SerialNo, 1, 1);
+                }
+                else if (item.IsService)
+                {
+                    line = new CartLine(item, null, null, l.Qty, null);
+                }
+                else
+                {
+                    var available = await _billing.GetAvailableQtyAsync(item.VariantId);
+                    var qty = l.Qty;
+                    if (!_allowNegative && qty > available) qty = Math.Max(available, 0m);
+
+                    if (qty <= 0)
+                    {
+                        warnings.Add($"'{item.DisplayName}' is out of stock and was left out.");
+                        continue;
+                    }
+                    if (qty < l.Qty)
+                        warnings.Add($"Only {qty:0.###} of '{item.DisplayName}' are in stock now (the bill had {l.Qty:0.###}).");
+
+                    line = new CartLine(item, null, null, qty, available);
+                }
+
+                line.UnitPrice = l.UnitPrice;              // keep the price the customer was quoted
+                Cart.Add(line);
+            }
+
+            Customer = bill.Customer;
+            await _held.DeleteAsync(bill.Id);
+            await RefreshHeldCountAsync();
+
+            if (warnings.Count > 0)
+                InfoMessage = "Bill resumed, but please check: " + string.Join(" ", warnings.Distinct());
+            else
+                InfoMessage = "Bill resumed.";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = UiErrors.Describe(ex);
+        }
+
+        FocusSearchRequested?.Invoke();
+    }
+
+    // ================================================================== voids
+
+    /// <summary>Only owners and managers see the "Void a sale" button.</summary>
+    public bool CanVoid => _currentUser.IsInRole("Owner", "Manager");
+
+    public VoidSaleViewModel CreateVoidViewModel() => new(_voids);
 }

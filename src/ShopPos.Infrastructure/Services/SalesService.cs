@@ -262,7 +262,8 @@ public class SalesService : ISalesService
     {
         db.SaleLines.Add(new SaleLine
         {
-            Id = Guid.CreateVersion7(),
+            // ids grow with every line, so ordering by id gives the cart order again (used by receipts)
+            Id = Guid.CreateVersion7(DateTimeOffset.UtcNow.AddMilliseconds(db.SaleLines.Local.Count)),
             SaleId = sale.Id,
             VariantId = variant.Id,
             SerialItemId = serialItemId,

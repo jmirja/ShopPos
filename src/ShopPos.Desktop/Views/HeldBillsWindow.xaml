@@ -1,0 +1,38 @@
+<Window x:Class="ShopPos.Desktop.Views.HeldBillsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Held bills" Width="760" Height="520" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Held bills" FontSize="22" FontWeight="SemiBold"/>
+
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"
+                  IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                  HeadersVisibility="Column" SelectionMode="Single" Margin="0,12,0,0"
+                  MouseDoubleClick="Grid_MouseDoubleClick">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Held at" Binding="{Binding HeldAtText}" Width="110"/>
+                <DataGridTextColumn Header="Note" Binding="{Binding Title}" Width="*"/>
+                <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="140"/>
+                <DataGridTextColumn Header="Items" Binding="{Binding LineCount}" Width="55"/>
+                <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=N2}" Width="90"/>
+                <DataGridTextColumn Header="By" Binding="{Binding HeldBy}" Width="110"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="2" Text="{Binding ErrorMessage}" Foreground="#B91C1C" TextWrapping="Wrap"
+                   Margin="0,10,0,0"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Delete" Padding="20,8" Margin="0,0,8,0" Click="Delete_Click"/>
+            <Button Content="Close" IsCancel="True" Padding="20,8" Margin="0,0,8,0"/>
+            <Button Content="Resume this bill" IsDefault="True" Padding="24,8" Click="Resume_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

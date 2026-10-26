@@ -96,6 +96,12 @@ public class BillingService : IBillingService
         return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
+    public async Task<SellableItem?> GetSellableItemAsync(Guid variantId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await GetItemAsync(db, variantId, _user.BranchId);
+    }
+
     // ================================================================ helpers
 
     private static async Task<SellableItem?> GetItemAsync(ShopPosDbContext db, Guid variantId, Guid branchId)

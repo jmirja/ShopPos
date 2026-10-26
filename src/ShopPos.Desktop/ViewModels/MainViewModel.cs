@@ -83,8 +83,19 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Logout()
+    private async Task LogoutAsync()
     {
+        // A bill that is still open is put on hold automatically so it is not lost.
+        if (_billing is { HasItems: true })
+        {
+            var held = await _billing.HoldAsync("Held automatically when logging out");
+            if (!held)
+            {
+                await NavigateAsync("Billing");          // show the problem to the cashier
+                return;
+            }
+        }
+
         LoggedOut = true;
         LogoutRequested?.Invoke();
     }

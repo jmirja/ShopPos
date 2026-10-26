@@ -47,4 +47,7 @@ public interface IBillingService
     Task<decimal> GetAvailableQtyAsync(Guid variantId);
 
     Task<bool> AllowNegativeStockAsync();
+
+    /// <summary>One sellable item by its variant id (null when it is inactive or missing). Used when a held bill is resumed.</summary>
+    Task<SellableItem?> GetSellableItemAsync(Guid variantId);
 }
