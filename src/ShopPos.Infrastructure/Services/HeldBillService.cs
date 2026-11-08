@@ -88,7 +88,7 @@ public class HeldBillService : IHeldBillService
         var branchId = _user.BranchId;
 
         var rows = await db.Sales.AsNoTracking()
-            .Where(s => s.BranchId == branchId && s.Status == "Held")
+            .Where(s => s.BranchId == branchId && s.Status == "Held" && !db.RepairJobs.Any(j => j.SaleId == s.Id))
             .OrderBy(s => s.SaleDate)
             .Select(s => new
             {
@@ -110,14 +110,14 @@ public class HeldBillService : IHeldBillService
     {
         await using var db = await _factory.CreateDbContextAsync();
         var branchId = _user.BranchId;
-        return await db.Sales.CountAsync(s => s.BranchId == branchId && s.Status == "Held");
+        return await db.Sales.CountAsync(s => s.BranchId == branchId && s.Status == "Held" && !db.RepairJobs.Any(j => j.SaleId == s.Id));
     }
 
     public async Task<HeldBill?> GetAsync(Guid id)
     {
         await using var db = await _factory.CreateDbContextAsync();
 
-        var sale = await db.Sales.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id && s.Status == "Held");
+        var sale = await db.Sales.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id && s.Status == "Held" && !db.RepairJobs.Any(j => j.SaleId == s.Id));
         if (sale is null) return null;
 
         CustomerDto? customer = null;
@@ -152,7 +152,7 @@ public class HeldBillService : IHeldBillService
     {
         await using var db = await _factory.CreateDbContextAsync();
 
-        var sale = await db.Sales.FirstOrDefaultAsync(s => s.Id == id && s.Status == "Held");
+        var sale = await db.Sales.FirstOrDefaultAsync(s => s.Id == id && s.Status == "Held" && !db.RepairJobs.Any(j => j.SaleId == s.Id));
         if (sale is null) return;                       // already gone (for example resumed on another screen)
 
         db.SaleLines.RemoveRange(await db.SaleLines.Where(l => l.SaleId == id).ToListAsync());

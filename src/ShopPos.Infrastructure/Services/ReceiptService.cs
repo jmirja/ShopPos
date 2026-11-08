@@ -12,7 +12,7 @@ public class ReceiptService : IReceiptService
     private static readonly string[] SettingKeys =
     {
         "shop.name", "shop.address", "shop.phone", "receipt.footer",
-        "receipt.paper", "receipt.auto_print", "receipt.printer"
+        "receipt.paper", "receipt.auto_print", "receipt.printer", "repair.slip_footer"
     };
 
     private readonly IDbContextFactory<ShopPosDbContext> _factory;
@@ -74,6 +74,35 @@ public class ReceiptService : IReceiptService
             Due: sale.DueAmount,
             Change: changeGiven,
             IsVoided: sale.Status == "Voided");
+    }
+
+    public async Task<JobSlipData> GetJobSlipAsync(Guid jobId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+
+        var job = await db.RepairJobs.AsNoTracking().FirstOrDefaultAsync(j => j.Id == jobId)
+                  ?? throw new BusinessRuleException("This repair job no longer exists.");
+        var customer = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == job.CustomerId);
+        var takenBy = await db.Users.AsNoTracking()
+            .Where(u => u.Id == job.CreatedByUserId).Select(u => u.FullName).FirstOrDefaultAsync() ?? string.Empty;
+        var settings = await ReadSettingsAsync(db);
+
+        return new JobSlipData(
+            ShopName: Get(settings, "shop.name") ?? "Shop",
+            ShopAddress: Get(settings, "shop.address"),
+            ShopPhone: Get(settings, "shop.phone"),
+            Footer: Get(settings, "repair.slip_footer")
+                    ?? "Please keep this slip and bring it when you collect your device.",
+            JobNo: job.JobNo,
+            ReceivedLocal: DateTime.SpecifyKind(job.ReceivedAt, DateTimeKind.Utc).ToLocalTime(),
+            Customer: customer?.Name ?? string.Empty,
+            CustomerPhone: customer?.Phone,
+            Device: $"{job.DeviceBrand} {job.DeviceModel}".Trim(),
+            Imei: job.Imei,
+            Problem: job.ProblemDescription,
+            Estimate: job.EstimatedCost,
+            Advance: job.AdvancePaid,
+            TakenBy: takenBy);
     }
 
     public async Task<ReceiptData?> GetLastReceiptAsync()

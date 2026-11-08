@@ -1,0 +1,184 @@
+<UserControl x:Class="ShopPos.Desktop.Views.RepairsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="470"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: list of jobs -->
+        <DockPanel Grid.Column="0" Margin="0,0,24,0">
+            <TextBlock DockPanel.Dock="Top" Text="Repairs" FontSize="24" FontWeight="SemiBold"/>
+            <Button DockPanel.Dock="Top" Content="+ New repair job" Command="{Binding NewJobCommand}"
+                    HorizontalAlignment="Left" Padding="12,6" Margin="0,12,0,8"/>
+
+            <ComboBox DockPanel.Dock="Top" ItemsSource="{Binding Filters}" SelectedItem="{Binding SelectedFilter}"
+                      DisplayMemberPath="Label" Padding="6" Margin="0,0,0,6"/>
+
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Button DockPanel.Dock="Right" Content="Search" Command="{Binding SearchCommand}"
+                        Padding="10,4" Margin="6,0,0,0"/>
+                <TextBox Padding="6" ToolTip="Job number, customer name or phone, IMEI or device, then press Enter"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                    </TextBox.InputBindings>
+                </TextBox>
+            </DockPanel>
+
+            <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                      IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                      HeadersVisibility="Column" SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Job" Binding="{Binding JobNo}" Width="85"/>
+                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="*"/>
+                    <DataGridTextColumn Header="Device" Binding="{Binding Device}" Width="110"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <!-- Right: the job -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding JobTitle}" FontSize="20" FontWeight="SemiBold"/>
+
+                <!-- customer -->
+                <DockPanel Margin="0,10,0,0">
+                    <Button DockPanel.Dock="Right" Content="Choose customer..." Click="ChooseCustomer_Click"
+                            Padding="12,5" Margin="8,0,0,0"
+                            Visibility="{Binding IsNew, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="{Binding CustomerText}" FontSize="15" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </DockPanel>
+
+                <!-- device and problem -->
+                <WrapPanel Margin="0,12,0,0" IsEnabled="{Binding CanEdit}">
+                    <StackPanel Width="190" Margin="0,0,12,10">
+                        <TextBlock Text="Device brand" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding Brand, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                    <StackPanel Width="190" Margin="0,0,12,10">
+                        <TextBlock Text="Model" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                    <StackPanel Width="190" Margin="0,0,12,10">
+                        <TextBlock Text="IMEI / serial" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding Imei, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                </WrapPanel>
+
+                <StackPanel IsEnabled="{Binding CanEdit}">
+                    <TextBlock Text="Problem *" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding Problem, UpdateSourceTrigger=PropertyChanged}" Padding="6"
+                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"/>
+
+                    <DockPanel Margin="0,10,0,0">
+                        <StackPanel DockPanel.Dock="Left" Width="190" Margin="0,0,12,0">
+                            <TextBlock Text="Estimated cost" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding EstimateText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Notes (scratches, accessories left, password...)" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Button Content="Save job" Click="Save_Click" HorizontalAlignment="Left"
+                            Padding="26,8" Margin="0,14,0,0"/>
+                </StackPanel>
+
+                <TextBlock Text="{Binding SummaryText}" FontWeight="SemiBold" Foreground="#92400E"
+                           Margin="0,14,0,0"/>
+
+                <!-- actions -->
+                <WrapPanel Margin="0,12,0,0">
+                    <Button Content="Take advance payment" Click="Advance_Click" Padding="12,6" Margin="0,0,8,8"
+                            IsEnabled="{Binding CanTakeAdvance}"/>
+                    <Button Content="Start repair" Command="{Binding StartRepairCommand}" Padding="12,6"
+                            Margin="0,0,8,8" IsEnabled="{Binding CanStart}"/>
+                    <Button Content="Mark ready" Command="{Binding MarkReadyCommand}" Padding="12,6"
+                            Margin="0,0,8,8" IsEnabled="{Binding CanMarkReady}"/>
+                    <Button Content="Deliver and bill..." Click="Deliver_Click" Padding="12,6" Margin="0,0,8,8"
+                            IsEnabled="{Binding CanDeliver}" FontWeight="SemiBold"/>
+                    <Button Content="Print job slip" Click="PrintSlip_Click" Padding="12,6" Margin="0,0,8,8"
+                            IsEnabled="{Binding CanCancel}"/>
+                    <Button Content="Cancel job..." Click="Cancel_Click" Padding="12,6" Margin="0,0,8,8"
+                            IsEnabled="{Binding CanCancel}"/>
+                </WrapPanel>
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <TextBlock Text="{Binding InfoMessage}" Foreground="#15803D" FontWeight="SemiBold"
+                           TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                <!-- spare parts (they can be added once the job is saved) -->
+                <TextBlock Text="Spare parts used" FontWeight="SemiBold" Margin="0,18,0,6"/>
+                <DockPanel Margin="0,0,0,6" IsEnabled="{Binding CanTakeAdvance}">
+                    <TextBox DockPanel.Dock="Right" Width="50" Padding="6" Margin="8,0,0,0" ToolTip="Quantity"
+                             Text="{Binding PartQtyText, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Padding="6" ToolTip="Type or scan a part (name, SKU or barcode) and press Enter"
+                             Text="{Binding PartSearchText, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SubmitPartCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding PartResults}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button HorizontalContentAlignment="Stretch" Padding="8,5" Background="White"
+                                    Command="{Binding DataContext.PickPartCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding PriceText}" FontWeight="SemiBold"/>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Subtitle}" Foreground="#666" FontSize="12"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <DataGrid ItemsSource="{Binding Parts}" IsReadOnly="True" AutoGenerateColumns="False"
+                          CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="200" Margin="0,6,0,0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Part" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Qty" Binding="{Binding Qty, StringFormat=0.###}" Width="55"/>
+                        <DataGridTextColumn Header="Price" Binding="{Binding UnitPrice, StringFormat=N2}" Width="80"/>
+                        <DataGridTextColumn Header="Total" Binding="{Binding LineTotal, StringFormat=N2}" Width="85"/>
+                        <DataGridTemplateColumn Width="80">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Remove" Margin="2"
+                                            Command="{Binding DataContext.RemovePartCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- history -->
+                <TextBlock Text="History" FontWeight="SemiBold" Margin="0,18,0,6"/>
+                <DataGrid ItemsSource="{Binding History}" IsReadOnly="True" AutoGenerateColumns="False"
+                          CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="200" Margin="0,0,0,24">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="When" Binding="{Binding AtText}" Width="125"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="85"/>
+                        <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*"/>
+                        <DataGridTextColumn Header="By" Binding="{Binding By}" Width="100"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

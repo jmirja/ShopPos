@@ -46,6 +46,43 @@ public class ReceiptCoordinator
         }
     }
 
+    /// <summary>Prints (or previews) the slip for a device that was handed in for repair.</summary>
+    public async Task PrintJobSlipAsync(Guid jobId, Window? owner)
+    {
+        try
+        {
+            var settings = await _receipts.GetSettingsAsync();
+            var slip = await _receipts.GetJobSlipAsync(jobId);
+
+            if (settings.AutoPrint)
+            {
+                try
+                {
+                    var document = ReceiptDocumentBuilder.BuildSlip(slip, ReceiptPaper.Find(settings.Paper));
+                    ReceiptPrinter.PrintDirect(document, settings.Printer, slip.JobNo);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"The job slip could not be printed automatically:\n\n{ex.Message}\n\n" +
+                        "The preview will open so you can print it by hand.",
+                        "Repair slip", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+
+            var viewModel = new ReceiptViewModel(
+                $"Repair slip {slip.JobNo}", slip.JobNo,
+                paper => ReceiptDocumentBuilder.BuildSlip(slip, paper), settings, _receipts);
+            new ReceiptWindow(viewModel) { Owner = owner }.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"The job slip could not be prepared:\n\n{ex.Message}",
+                "Repair slip", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     public async Task ReprintLastAsync(Window? owner)
     {
         try

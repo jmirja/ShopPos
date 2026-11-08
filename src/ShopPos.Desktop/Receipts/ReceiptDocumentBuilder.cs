@@ -19,13 +19,22 @@ public static class ReceiptDocumentBuilder
 
     private static readonly FontFamily Font = new("Segoe UI");
 
-    public static FixedDocument Build(ReceiptData data, ReceiptPaper paper, bool reprint)
+    public static FixedDocument Build(ReceiptData data, ReceiptPaper paper, bool reprint) =>
+        Layout(CreateBlocks(data, ContentWidth(paper), paper.FontSize, reprint), paper);
+
+    /// <summary>The slip the customer gets when a device is handed in for repair.</summary>
+    public static FixedDocument BuildSlip(JobSlipData data, ReceiptPaper paper) =>
+        Layout(CreateSlipBlocks(data, ContentWidth(paper), paper.FontSize), paper);
+
+    private static double ContentWidth(ReceiptPaper paper) =>
+        (paper.PageWidthMm - 2 * paper.MarginMm) * MmToDip;
+
+    private static FixedDocument Layout(List<FrameworkElement> blocks, ReceiptPaper paper)
     {
         var pageWidth = paper.PageWidthMm * MmToDip;
         var margin = paper.MarginMm * MmToDip;
         var contentWidth = pageWidth - 2 * margin;
 
-        var blocks = CreateBlocks(data, contentWidth, paper.FontSize, reprint);
         foreach (var block in blocks)
             block.Measure(new Size(contentWidth, double.PositiveInfinity));
 
@@ -123,6 +132,43 @@ public static class ReceiptDocumentBuilder
         b.Add(Divider(w));
 
         if (d.Footer is not null) b.Add(Text(d.Footer, w, fs * 0.95, wrap: true, center: true));
+        return b;
+    }
+
+    private static List<FrameworkElement> CreateSlipBlocks(JobSlipData d, double w, double fs)
+    {
+        var b = new List<FrameworkElement>();
+
+        b.Add(Text(d.ShopName, w, fs * 1.5, bold: true, center: true));
+        if (d.ShopAddress is not null) b.Add(Text(d.ShopAddress, w, fs * 0.9, center: true));
+        if (d.ShopPhone is not null) b.Add(Text("Tel: " + d.ShopPhone, w, fs * 0.9, center: true));
+        b.Add(Divider(w));
+
+        b.Add(Text("REPAIR JOB SLIP", w, fs * 1.2, bold: true, center: true));
+        b.Add(Pair("Job no", d.JobNo, w, fs * 1.1, bold: true));
+        b.Add(Pair("Date", d.ReceivedLocal.ToString("dd MMM yyyy HH:mm"), w, fs));
+        b.Add(Pair("Customer", d.Customer, w, fs));
+        if (d.CustomerPhone is not null) b.Add(Pair("Phone", d.CustomerPhone, w, fs));
+        if (d.TakenBy.Length > 0) b.Add(Pair("Received by", d.TakenBy, w, fs));
+        b.Add(Divider(w));
+
+        b.Add(Text("Device", w, fs * 0.9, bold: true));
+        b.Add(Text(d.Device.Length > 0 ? d.Device : "-", w, fs, wrap: true));
+        if (d.Imei is not null) b.Add(Pair("IMEI", d.Imei, w, fs));
+        b.Add(Gap(fs * 0.3));
+        b.Add(Text("Problem", w, fs * 0.9, bold: true));
+        b.Add(Text(d.Problem, w, fs, wrap: true));
+        b.Add(Divider(w));
+
+        b.Add(Pair("Estimated cost", d.Estimate.ToString("N2"), w, fs));
+        if (d.Advance > 0)
+        {
+            b.Add(Pair("Advance paid", d.Advance.ToString("N2"), w, fs));
+            b.Add(Pair("Balance (estimate)", Math.Max(0, d.Estimate - d.Advance).ToString("N2"), w, fs, bold: true));
+        }
+        b.Add(Divider(w));
+
+        b.Add(Text(d.Footer ?? "", w, fs * 0.95, wrap: true, center: true));
         return b;
     }
 
