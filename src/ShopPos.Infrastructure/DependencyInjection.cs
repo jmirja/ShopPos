@@ -10,6 +10,7 @@ using ShopPos.Application.Repairs;
 using ShopPos.Application.Sales;
 using ShopPos.Application.Shifts;
 using ShopPos.Application.Stock;
+using ShopPos.Application.Transfers;
 using ShopPos.Infrastructure.Persistence;
 using ShopPos.Infrastructure.Security;
 using ShopPos.Infrastructure.Services;
@@ -40,7 +41,8 @@ public static class DependencyInjection
         services.AddSingleton<IShiftService, ShiftService>();
         services.AddSingleton<IHeldBillService, HeldBillService>();
         services.AddSingleton<ISaleVoidService, SaleVoidService>();
-        services.AddSingleton<IRepairService, RepairService>();    
+        services.AddSingleton<IRepairService, RepairService>();
+        services.AddSingleton<ITransferService, TransferService>();    
  
         return services;
     }

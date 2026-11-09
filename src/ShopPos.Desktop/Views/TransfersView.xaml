@@ -1,0 +1,180 @@
+<UserControl x:Class="ShopPos.Desktop.Views.TransfersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="430"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: the day -->
+        <DockPanel Grid.Column="0" Margin="0,0,24,0">
+            <TextBlock DockPanel.Dock="Top" Text="Money transfers" FontSize="24" FontWeight="SemiBold"/>
+
+            <DockPanel DockPanel.Dock="Top" Margin="0,12,0,0">
+                <DatePicker DockPanel.Dock="Left" SelectedDate="{Binding SelectedDay}" Width="150" Padding="4"/>
+                <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding FilterProviders}"
+                          SelectedItem="{Binding FilterProvider}" DisplayMemberPath="Label"
+                          Width="170" Margin="8,0,0,0" Padding="6"/>
+                <Button DockPanel.Dock="Right" Content="Search" Command="{Binding SearchCommand}"
+                        Padding="10,4" Margin="6,0,0,0"/>
+                <TextBox Margin="8,0,0,0" Padding="6" ToolTip="Reference number, name or phone, then press Enter"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                    </TextBox.InputBindings>
+                </TextBox>
+            </DockPanel>
+
+            <!-- what to settle with each provider -->
+            <Border DockPanel.Dock="Top" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
+                    CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Text="Settlement for the day" FontWeight="SemiBold"/>
+                    <ItemsControl ItemsSource="{Binding SummaryRows}" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding ProviderLabel}" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1" Foreground="#555">
+                                        <Run Text="{Binding SendCount, Mode=OneWay}"/><Run Text=" sent, "/>
+                                        <Run Text="{Binding ReceiveCount, Mode=OneWay}"/><Run Text=" received, commission "/>
+                                        <Run Text="{Binding Commission, StringFormat=N2, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="2" Text="{Binding DueText}" FontWeight="SemiBold"
+                                               Foreground="#92400E"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding TotalsText}" Foreground="#15803D" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" Margin="0,12,0,0"
+                      IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                      HeadersVisibility="Column" SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Time" Binding="{Binding TimeText}" Width="55"/>
+                    <DataGridTextColumn Header="Provider" Binding="{Binding ProviderLabel}" Width="105"/>
+                    <DataGridTextColumn Header="Type" Binding="{Binding Direction}" Width="65"/>
+                    <DataGridTextColumn Header="Reference" Binding="{Binding ReferenceNo}" Width="120"/>
+                    <DataGridTextColumn Header="Sender > Receiver" Binding="{Binding Parties}" Width="*"/>
+                    <DataGridTextColumn Header="Amount" Binding="{Binding Principal, StringFormat=N2}" Width="85"/>
+                    <DataGridTextColumn Header="Fee" Binding="{Binding Fee, StringFormat=N2}" Width="65"/>
+                    <DataGridTextColumn Header="Commission" Binding="{Binding Commission, StringFormat=N2}" Width="85"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="75"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <!-- Right: record a transfer + details of the selected line -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Record a transfer" FontSize="18" FontWeight="SemiBold"/>
+                <TextBlock Foreground="#666" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                           Text="Do the transfer in the provider's own software first, then record it here."/>
+
+                <TextBlock Text="Provider" Margin="0,12,0,4"/>
+                <ComboBox ItemsSource="{Binding FormProviders}" SelectedItem="{Binding Provider}"
+                          DisplayMemberPath="Label" Padding="6"/>
+
+                <TextBlock Text="Type" Margin="0,10,0,4"/>
+                <ComboBox ItemsSource="{Binding Directions}" SelectedItem="{Binding Direction}"
+                          DisplayMemberPath="Label" Padding="6"/>
+
+                <TextBlock Text="Reference number (MTCN / PIN) *" Margin="0,10,0,4"/>
+                <TextBox Text="{Binding ReferenceNo, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+
+                <DockPanel Margin="0,10,0,0">
+                    <Button DockPanel.Dock="Right" Content="Choose customer..." Click="ChooseCustomer_Click"
+                            Padding="10,4" Margin="8,0,0,0"/>
+                    <TextBlock Text="{Binding CustomerText}" Foreground="#555" VerticalAlignment="Center"
+                               TextWrapping="Wrap"/>
+                </DockPanel>
+
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Sender name *" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding SenderName, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                        <TextBlock Text="Sender phone" Margin="0,8,0,4"/>
+                        <TextBox Text="{Binding SenderPhone, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Receiver name *" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding ReceiverName, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                        <TextBlock Text="Receiver phone" Margin="0,8,0,4"/>
+                        <TextBox Text="{Binding ReceiverPhone, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                </Grid>
+
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Amount *" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding PrincipalText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Visibility="{Binding IsSend, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Fee charged" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding FeeText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Your commission" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding CommissionText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Visibility="{Binding IsSend, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Customer pays with" Margin="0,10,0,4"/>
+                    <ComboBox ItemsSource="{Binding Methods}" SelectedItem="{Binding SelectedMethod}"
+                              DisplayMemberPath="Name" Padding="6"/>
+                </StackPanel>
+
+                <TextBlock Text="Notes (for example ID type and number you checked)" Margin="0,10,0,4"/>
+                <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+
+                <Border Background="#FFFBEB" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="6"
+                        Padding="12" Margin="0,12,0,0">
+                    <TextBlock Text="{Binding AmountSummary}" FontSize="18" FontWeight="Bold" Foreground="#92400E"/>
+                </Border>
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                <TextBlock Text="{Binding InfoMessage}" Foreground="#15803D" FontWeight="SemiBold"
+                           TextWrapping="Wrap" Margin="0,10,0,0"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Content="Record transfer" Command="{Binding RecordCommand}" Padding="24,8" Margin="0,0,8,0"/>
+                    <Button Content="Clear" Command="{Binding ClearFormCommand}" Padding="16,8"/>
+                </StackPanel>
+
+                <!-- selected line -->
+                <Separator Margin="0,22,0,14"/>
+                <TextBlock Text="Selected line" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <Button Content="Cancel this transfer..." Click="Reverse_Click" HorizontalAlignment="Left"
+                        Padding="14,6" Margin="0,10,0,24" IsEnabled="{Binding CanReverse}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
