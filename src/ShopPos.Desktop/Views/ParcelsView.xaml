@@ -1,0 +1,229 @@
+<UserControl x:Class="ShopPos.Desktop.Views.ParcelsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <DockPanel Margin="24">
+        <TextBlock DockPanel.Dock="Top" Text="Parcels" FontSize="24" FontWeight="SemiBold"/>
+
+        <TabControl Margin="0,12,0,0">
+
+            <!-- ======================= parcels ======================= -->
+            <TabItem Header="Parcels">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="420"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- list -->
+                    <DockPanel Grid.Column="0" Margin="0,0,20,0">
+                        <DockPanel DockPanel.Dock="Top">
+                            <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding Filters}"
+                                      SelectedItem="{Binding SelectedFilter}" DisplayMemberPath="Label"
+                                      Width="230" Padding="6"/>
+                            <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding CourierFilters}"
+                                      SelectedItem="{Binding CourierFilter}" DisplayMemberPath="Label"
+                                      Width="150" Margin="8,0,0,0" Padding="6"/>
+                            <Button DockPanel.Dock="Right" Content="Search" Command="{Binding SearchCommand}"
+                                    Padding="10,4" Margin="6,0,0,0"/>
+                            <TextBox Margin="8,0,0,0" Padding="6"
+                                     ToolTip="Tracking number, receiver or sender name or phone, then press Enter"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                                </TextBox.InputBindings>
+                            </TextBox>
+                        </DockPanel>
+
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding TotalsText}" Foreground="#15803D"
+                                   FontWeight="SemiBold" Margin="0,10,0,6"/>
+
+                        <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                                  IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Booked" Binding="{Binding BookedText}" Width="90"/>
+                                <DataGridTextColumn Header="Courier" Binding="{Binding CourierName}" Width="95"/>
+                                <DataGridTextColumn Header="Tracking" Binding="{Binding TrackingNo}" Width="110"/>
+                                <DataGridTextColumn Header="Receiver" Binding="{Binding ReceiverName}" Width="*"/>
+                                <DataGridTextColumn Header="Charge" Binding="{Binding Charge, StringFormat=N2}" Width="75"/>
+                                <DataGridTextColumn Header="Margin" Binding="{Binding Margin, StringFormat=N2}" Width="70"/>
+                                <DataGridTextColumn Header="COD" Binding="{Binding Cod, StringFormat=N2}" Width="70"/>
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="85"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+
+                    <!-- booking + selected parcel -->
+                    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Book a parcel" FontSize="18" FontWeight="SemiBold"/>
+
+                            <DockPanel Margin="0,10,0,0">
+                                <Button DockPanel.Dock="Right" Content="+ Courier" Click="AddCourier_Click"
+                                        Padding="10,4" Margin="8,0,0,0"
+                                        Visibility="{Binding CanAddCourier, Converter={StaticResource BoolToVis}}"/>
+                                <StackPanel>
+                                    <TextBlock Text="Courier" Margin="0,0,0,4"/>
+                                    <ComboBox ItemsSource="{Binding Couriers}" SelectedItem="{Binding Courier}"
+                                              DisplayMemberPath="Name" Padding="6"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock Text="Tracking number" Margin="0,10,0,4"/>
+                            <TextBox Text="{Binding TrackingNo, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+
+                            <DockPanel Margin="0,10,0,0">
+                                <Button DockPanel.Dock="Right" Content="Choose customer..." Click="ChooseCustomer_Click"
+                                        Padding="10,4" Margin="8,0,0,0"/>
+                                <TextBlock Text="{Binding CustomerText}" Foreground="#555" VerticalAlignment="Center"
+                                           TextWrapping="Wrap"/>
+                            </DockPanel>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Sender name" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding SenderName, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Sender phone" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding SenderPhone, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Receiver name *" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding ReceiverName, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Receiver phone" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding ReceiverPhone, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Receiver address *" Margin="0,8,0,4"/>
+                            <TextBox Text="{Binding ReceiverAddress, UpdateSourceTrigger=PropertyChanged}" Padding="6"
+                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48"/>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Weight (kg)" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding WeightText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="You charge" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding ChargeText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Courier cost" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding CostText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="6">
+                                    <TextBlock Text="COD" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding CodText, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Customer pays the charge with" Margin="0,8,0,4"/>
+                            <ComboBox ItemsSource="{Binding Methods}" SelectedItem="{Binding SelectedMethod}"
+                                      DisplayMemberPath="Name" Padding="6"/>
+
+                            <TextBlock Text="Notes" Margin="0,8,0,4"/>
+                            <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" Padding="6"/>
+
+                            <Border Background="#ECFDF5" BorderBrush="#6EE7B7" BorderThickness="1" CornerRadius="6"
+                                    Padding="10" Margin="0,10,0,0">
+                                <TextBlock Text="{Binding MarginText}" FontWeight="Bold" Foreground="#065F46"/>
+                            </Border>
+
+                            <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" TextWrapping="Wrap"
+                                       Margin="0,10,0,0"/>
+                            <TextBlock Text="{Binding InfoMessage}" Foreground="#15803D" FontWeight="SemiBold"
+                                       TextWrapping="Wrap" Margin="0,10,0,0"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="Book parcel" Command="{Binding BookCommand}" Padding="24,8" Margin="0,0,8,0"/>
+                                <Button Content="Clear" Command="{Binding ClearFormCommand}" Padding="16,8"/>
+                            </StackPanel>
+
+                            <!-- selected parcel -->
+                            <Separator Margin="0,20,0,12"/>
+                            <TextBlock Text="Selected parcel" FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+                            <DockPanel Margin="0,10,0,0" IsEnabled="{Binding CanEditTracking}">
+                                <Button DockPanel.Dock="Right" Content="Save tracking" Command="{Binding SaveTrackingCommand}"
+                                        Padding="10,4" Margin="8,0,0,0"/>
+                                <TextBox Padding="6" ToolTip="Tracking number"
+                                         Text="{Binding EditTrackingText, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+
+                            <WrapPanel Margin="0,10,0,24">
+                                <Button Content="In transit" Command="{Binding MarkInTransitCommand}" Padding="12,6"
+                                        Margin="0,0,8,8" IsEnabled="{Binding CanTransit}"/>
+                                <Button Content="Delivered" Command="{Binding MarkDeliveredCommand}" Padding="12,6"
+                                        Margin="0,0,8,8" IsEnabled="{Binding CanDeliver}"/>
+                                <Button Content="Returned" Command="{Binding MarkReturnedCommand}" Padding="12,6"
+                                        Margin="0,0,8,8" IsEnabled="{Binding CanReturn}"/>
+                                <Button Content="Cancel parcel..." Click="CancelParcel_Click" Padding="12,6"
+                                        Margin="0,0,8,8" IsEnabled="{Binding CanCancel}"/>
+                                <Button Content="Pay COD to sender..." Click="PayCodToSender_Click" Padding="12,6"
+                                        Margin="0,0,8,8" IsEnabled="{Binding CanPayCodToSender}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ================== courier settlement ================== -->
+            <TabItem Header="Courier settlement">
+                <DockPanel Margin="0,12,0,0">
+                    <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="#555"
+                               Text="What is still open with each courier. 'You owe' is the courier cost of parcels you have not paid for yet. 'Courier owes you' is cash-on-delivery money for delivered parcels that the courier has not handed over."/>
+
+                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="Pay the selected courier..." Click="PayCourier_Click" Padding="16,8" Margin="0,0,8,0"/>
+                        <Button Content="Courier handed over COD money..." Click="ReceiveCod_Click" Padding="16,8"/>
+                    </StackPanel>
+
+                    <DataGrid ItemsSource="{Binding Balances}" SelectedItem="{Binding SelectedBalance}"
+                              IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
+                              HeadersVisibility="Column" SelectionMode="Single" Margin="0,10,0,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Courier" Binding="{Binding CourierName}" Width="*"/>
+                            <DataGridTextColumn Header="Parcels unpaid" Binding="{Binding UnpaidParcels}" Width="110"/>
+                            <DataGridTextColumn Header="You owe" Binding="{Binding UnpaidCost, StringFormat=N2}" Width="110"/>
+                            <DataGridTextColumn Header="COD parcels" Binding="{Binding CodPendingParcels}" Width="100"/>
+                            <DataGridTextColumn Header="Courier owes you (COD)" Binding="{Binding CodPending, StringFormat=N2}" Width="170"/>
+                            <DataGridTextColumn Header="COD to pay senders" Binding="{Binding CodToPay, StringFormat=N2}" Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</UserControl>

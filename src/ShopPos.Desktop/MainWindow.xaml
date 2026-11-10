@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:ShopPos.Desktop.ViewModels"
         xmlns:views="clr-namespace:ShopPos.Desktop.Views"
-        Title="Livry Connect" Height="720" Width="1180" MinHeight="560" MinWidth="900"
+        Title="Shop POS" Height="720" Width="1180" MinHeight="560" MinWidth="900"
         WindowStartupLocation="CenterScreen" WindowState="Maximized">
 
     <Window.Resources>
@@ -52,6 +52,9 @@
         <DataTemplate DataType="{x:Type vm:TransfersViewModel}">
             <views:TransfersView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ParcelsViewModel}">
+            <views:ParcelsView/>
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:CustomersViewModel}">
             <views:CustomersView/>
         </DataTemplate>
@@ -77,7 +80,7 @@
                     <Run Text="{Binding User.FullName, Mode=OneWay}"/>
                     <Run Text=" ("/><Run Text="{Binding User.Role, Mode=OneWay}"/><Run Text=")"/>
                 </TextBlock>
-                <TextBlock Text="Livry Connect" Foreground="White" FontSize="18"
+                <TextBlock Text="Shop POS" Foreground="White" FontSize="18"
                            FontWeight="SemiBold" VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
