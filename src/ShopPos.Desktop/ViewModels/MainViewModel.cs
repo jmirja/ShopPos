@@ -73,6 +73,13 @@ public partial class MainViewModel : ObservableObject
                 await vm.LoadAsync();
                 break;
             }
+            case "Suppliers & Purchases":
+            {
+                var vm = _services.GetRequiredService<PurchasingViewModel>();
+                CurrentPage = vm;
+                await vm.LoadAsync();
+                break;
+            }
             case "Customers":
             {
                 var vm = _services.GetRequiredService<CustomersViewModel>();

@@ -6,11 +6,13 @@ using ShopPos.Application.Billing;
 using ShopPos.Application.Catalog;
 using ShopPos.Application.Customers;
 using ShopPos.Application.Parcels;
+using ShopPos.Application.Purchasing;
 using ShopPos.Application.Receipts;
 using ShopPos.Application.Repairs;
 using ShopPos.Application.Sales;
 using ShopPos.Application.Shifts;
 using ShopPos.Application.Stock;
+using ShopPos.Application.Suppliers;
 using ShopPos.Application.Transfers;
 using ShopPos.Infrastructure.Persistence;
 using ShopPos.Infrastructure.Security;
@@ -44,7 +46,9 @@ public static class DependencyInjection
         services.AddSingleton<ISaleVoidService, SaleVoidService>();
         services.AddSingleton<IRepairService, RepairService>();
         services.AddSingleton<ITransferService, TransferService>();
-        services.AddSingleton<IParcelService, ParcelService>();    
+        services.AddSingleton<IParcelService, ParcelService>();
+        services.AddSingleton<ISupplierService, SupplierService>();
+        services.AddSingleton<IPurchaseService, PurchaseService>();    
  
         return services;
     }

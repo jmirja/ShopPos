@@ -1,0 +1,27 @@
+<Window x:Class="ShopPos.Desktop.Views.SerialEntryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="IMEI / serial numbers" Width="460" Height="520" WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="HeaderText" Grid.Row="0" TextWrapping="Wrap" FontSize="15"/>
+
+        <TextBox x:Name="SerialBox" Grid.Row="1" Margin="0,12,0,0" Padding="8" FontSize="15"
+                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                 TextChanged="SerialBox_TextChanged"/>
+
+        <TextBlock x:Name="CountText" Grid.Row="2" Margin="0,8,0,0" FontWeight="SemiBold"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Cancel" IsCancel="True" Padding="22,8" Margin="0,0,8,0"/>
+            <Button Content="OK" IsDefault="True" Padding="30,8" Click="Ok_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
