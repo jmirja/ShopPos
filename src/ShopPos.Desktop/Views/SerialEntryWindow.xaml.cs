@@ -9,13 +9,13 @@ public partial class SerialEntryWindow : Window
 {
     private readonly ReceiveLineRow _row;
 
-    public SerialEntryWindow(ReceiveLineRow row)
+    public SerialEntryWindow(ReceiveLineRow row, string verb = "arrived")
     {
         InitializeComponent();
         _row = row;
 
         HeaderText.Text = $"{row.Name}\nScan or type the IMEI / serial numbers, one per line. " +
-                          $"You said {row.Qty:0.###} arrived.";
+                          $"You said {row.Qty:0.###} {verb}.";
         SerialBox.Text = row.SerialText;
 
         Loaded += (_, _) =>

@@ -32,6 +32,26 @@ public partial class PurchasingView : UserControl
             await RunReceiveAsync(root, receive);
     }
 
+    private async void ReturnGoods_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not PurchasingViewModel root) return;
+
+        var vm = root.Suppliers.CreateReturnViewModel();
+        if (vm is null) return;
+
+        var window = new ReturnGoodsWindow(vm) { Owner = Owner };
+        if (window.ShowDialog() != true || vm.Result is not { } r) return;
+
+        await root.RefreshAllAsync();
+
+        var message = $"Return {r.ReceiptNo} saved: {r.Total:N2}.";
+        if (r.CreditApplied > 0) message += $" {r.CreditApplied:N2} was taken off what you owe.";
+        if (r.Refunded > 0) message += $" Refund received: {r.Refunded:N2}.";
+
+        root.Suppliers.InfoMessage = message;
+        root.Orders.InfoMessage = message;
+    }
+
     // ------------------------------------------------------------ purchase orders
 
     private async void ReceiveFromPo_Click(object sender, RoutedEventArgs e)

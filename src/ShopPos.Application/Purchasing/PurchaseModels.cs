@@ -53,6 +53,18 @@ public record ReceiveRequest(
 
 public record ReceiptResult(Guid ReceiptId, string ReceiptNo, decimal Total, decimal Paid, decimal Due);
 
+/// <summary>
+/// Goods sent back to a supplier. Quantities are positive here. Phones need their IMEIs, batch items a batch number.
+/// The value of the return is first credited against what you owe the supplier for unpaid purchases;
+/// whatever is more than that has to come back as money (RefundNow).
+/// </summary>
+public record ReturnRequest(
+    Guid SupplierId, string? CreditNoteNo, DateOnly ReturnDate, string? Reason,
+    IReadOnlyList<ReceiveLine> Lines,
+    decimal RefundNow, int? PaymentMethodId, string? Reference);
+
+public record ReturnResult(Guid ReceiptId, string ReceiptNo, decimal Total, decimal CreditApplied, decimal Refunded);
+
 public interface IPurchaseService
 {
     Task<List<PoRow>> ListOrdersAsync(PoFilter filter, string? search);
@@ -67,4 +79,10 @@ public interface IPurchaseService
     /// cost price, records what you owe the supplier and any payment made now. All or nothing.
     /// </summary>
     Task<ReceiptResult> ReceiveAsync(ReceiveRequest request);
+
+    /// <summary>
+    /// Sends goods back: stock goes out (IMEIs become "Removed"), the supplier's unpaid purchases are credited,
+    /// and any refund you receive is recorded. All or nothing.
+    /// </summary>
+    Task<ReturnResult> ReturnAsync(ReturnRequest request);
 }

@@ -203,6 +203,16 @@ public partial class SuppliersViewModel : ObservableObject
 
     // ============================================== goods without an order
 
+    public ReturnGoodsViewModel? CreateReturnViewModel()
+    {
+        if (SupplierId == Guid.Empty)
+        {
+            ErrorMessage = "Select a supplier first.";
+            return null;
+        }
+        return new ReturnGoodsViewModel(_purchases, _billing, _sales, _suppliers, SupplierId, Name);
+    }
+
     public ReceiveGoodsViewModel? CreateDirectReceiveViewModel()
     {
         if (SupplierId == Guid.Empty || !IsActive)

@@ -466,6 +466,256 @@ public class PurchaseService : IPurchaseService
         return new ReceiptResult(receipt.Id, receipt.ReceiptNo, total, paid, total - paid);
     }
 
+    // ============================================================== returns
+
+    /// <summary>
+    /// A return is stored like a delivery with minus signs: a goods receipt "PR-000001" with negative quantities
+    /// and a negative total. Its credit is applied to the oldest unpaid purchases of the supplier, so the
+    /// supplier's due goes down and the list of purchases stays truthful.
+    /// </summary>
+    public async Task<ReturnResult> ReturnAsync(ReturnRequest r)
+    {
+        if (!_user.IsLoggedIn)
+            throw new BusinessRuleException("Your session has ended. Please sign in again.");
+        if (r.Lines.Count == 0)
+            throw new BusinessRuleException("Add at least one item to send back.");
+        if (r.Lines.Any(l => l.Qty <= 0))
+            throw new BusinessRuleException("Every quantity must be greater than zero.");
+        if (r.Lines.Any(l => l.UnitCost < 0))
+            throw new BusinessRuleException("A credit amount cannot be negative.");
+
+        var reason = Clean(r.Reason) ?? throw new BusinessRuleException("Type the reason for the return.");
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var branchId = _user.BranchId;
+
+        var supplier = await db.Suppliers.AsNoTracking().FirstOrDefaultAsync(s => s.Id == r.SupplierId)
+                       ?? throw new BusinessRuleException("This supplier no longer exists.");
+
+        var variantIds = r.Lines.Select(l => l.VariantId).Distinct().ToList();
+        var variants = await db.ProductVariants.AsNoTracking().Where(v => variantIds.Contains(v.Id)).ToDictionaryAsync(v => v.Id);
+        var productIds = variants.Values.Select(v => v.ProductId).Distinct().ToList();
+        var products = await db.Products.AsNoTracking().Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+        var allowNegative = await AllowNegativeAsync(db);
+
+        // ---- IMEIs: they must exist, be in stock and belong to the item
+        var allSerials = r.Lines.SelectMany(l => l.Serials).Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+        var repeated = allSerials.GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1).Select(g => g.Key).Take(3).ToList();
+        if (repeated.Count > 0)
+            throw new BusinessRuleException("The same IMEI / serial number appears twice: " + string.Join(", ", repeated));
+
+        var serialItems = allSerials.Count == 0
+            ? new Dictionary<string, SerialItem>(StringComparer.OrdinalIgnoreCase)
+            : (await db.SerialItems.Where(s => allSerials.Contains(s.SerialNo)).ToListAsync())
+                .ToDictionary(s => s.SerialNo, StringComparer.OrdinalIgnoreCase);
+
+        var now = DateTime.UtcNow;
+        var returnNote = $"Purchase return: {reason}";
+        var receipt = new GoodsReceipt
+        {
+            Id = Guid.CreateVersion7(),
+            BranchId = branchId,
+            PoId = null,
+            SupplierId = supplier.Id,
+            ReceiptNo = await NextNumberAsync(db, "pr.next", "PR"),
+            SupplierInvoiceNo = Clean(r.CreditNoteNo),
+            ReceivedDate = r.ReturnDate,
+            Notes = returnNote.Length > 480 ? returnNote[..480] : returnNote,
+            CreatedByUserId = _user.UserId
+        };
+        db.GoodsReceipts.Add(receipt);
+
+        decimal total = 0;
+        var takenPlain = new Dictionary<Guid, decimal>();
+        var takenBatch = new Dictionary<Guid, decimal>();
+
+        foreach (var line in r.Lines)
+        {
+            if (!variants.TryGetValue(line.VariantId, out var variant) ||
+                !products.TryGetValue(variant.ProductId, out var product))
+                throw new BusinessRuleException("One of the items no longer exists.");
+            if (product.ProductType != "Stock")
+                throw new BusinessRuleException($"'{product.Name}' is a service and cannot be returned.");
+
+            var name = string.IsNullOrWhiteSpace(variant.VariantName) ? product.Name : $"{product.Name} - {variant.VariantName}";
+            var qty = line.Qty;
+            var cost = Money(line.UnitCost);
+            var lineId = Guid.CreateVersion7(DateTimeOffset.UtcNow.AddMilliseconds(db.GoodsReceiptLines.Local.Count));
+            string? batchNo = null;
+
+            if (product.TracksSerial)
+            {
+                if (qty != Math.Floor(qty))
+                    throw new BusinessRuleException($"'{name}' is tracked by IMEI, so the quantity must be a whole number.");
+
+                var serials = line.Serials.Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                if (serials.Count != (int)qty)
+                    throw new BusinessRuleException($"'{name}': you are returning {qty:0} but entered {serials.Count} IMEI / serial number(s).");
+
+                foreach (var number in serials)
+                {
+                    if (!serialItems.TryGetValue(number, out var item) || item.VariantId != variant.Id)
+                        throw new BusinessRuleException($"IMEI / serial {number} was not found for '{name}'.");
+                    if (item.Status != "InStock")
+                        throw new BusinessRuleException($"IMEI / serial {number} is not in stock (status: {item.Status}), so it cannot be returned.");
+
+                    item.Status = "Removed";
+                    db.StockMovements.Add(NewReturnMovement(branchId, variant.Id, 1, cost, receipt, item.Id, null));
+                }
+            }
+            else if (product.TracksBatch)
+            {
+                batchNo = Clean(line.BatchNo) ?? throw new BusinessRuleException($"'{name}': enter the batch number you are returning.");
+
+                var batch = await db.Batches.FirstOrDefaultAsync(b => b.VariantId == variant.Id && b.BatchNo == batchNo)
+                            ?? throw new BusinessRuleException($"'{name}': there is no batch '{batchNo}'.");
+
+                var onHand = await db.StockMovements
+                    .Where(m => m.BatchId == batch.Id && m.BranchId == branchId)
+                    .SumAsync(m => (decimal?)m.QtyChange) ?? 0m;
+                takenBatch.TryGetValue(batch.Id, out var alreadyTaken);
+                if (onHand - alreadyTaken < qty)
+                    throw new BusinessRuleException($"'{name}': batch {batchNo} only has {onHand - alreadyTaken:0.###} in stock.");
+
+                takenBatch[batch.Id] = alreadyTaken + qty;
+                db.StockMovements.Add(NewReturnMovement(branchId, variant.Id, qty, cost, receipt, null, batch.Id));
+            }
+            else
+            {
+                var onHand = await db.StockMovements
+                    .Where(m => m.VariantId == variant.Id && m.BranchId == branchId)
+                    .SumAsync(m => (decimal?)m.QtyChange) ?? 0m;
+                takenPlain.TryGetValue(variant.Id, out var alreadyTaken);
+                if (!allowNegative && onHand - alreadyTaken < qty)
+                    throw new BusinessRuleException($"'{name}': only {onHand - alreadyTaken:0.###} in stock.");
+
+                takenPlain[variant.Id] = alreadyTaken + qty;
+                db.StockMovements.Add(NewReturnMovement(branchId, variant.Id, qty, cost, receipt, null, null));
+            }
+
+            db.GoodsReceiptLines.Add(new GoodsReceiptLine
+            {
+                Id = lineId,
+                ReceiptId = receipt.Id,
+                VariantId = variant.Id,
+                PoLineId = null,
+                Qty = -qty,                      // minus: this left the shop
+                UnitCost = cost,
+                BatchNo = batchNo,
+                ExpiryDate = null
+            });
+
+            total += Money(qty * cost);
+        }
+
+        if (total <= 0)
+            throw new BusinessRuleException("The value of the return must be greater than zero. Enter the credit per unit.");
+
+        // ---- credit first, refund for the rest
+        var refund = Money(r.RefundNow);
+        if (refund < 0 || refund > total)
+            throw new BusinessRuleException($"The refund must be between 0 and the value of the return ({total:N2}).");
+        var credit = total - refund;
+
+        var unpaid = await db.GoodsReceipts
+            .Where(g => g.SupplierId == supplier.Id && g.DueAmount > 0)
+            .OrderBy(g => g.ReceivedDate).ThenBy(g => g.ReceiptNo)
+            .ToListAsync();
+        var owed = unpaid.Sum(g => g.DueAmount);
+
+        if (credit > owed)
+            throw new BusinessRuleException(
+                $"This return is worth {total:N2}, but you only owe this supplier {owed:N2} on unpaid purchases. " +
+                $"The supplier has to refund at least {total - owed:N2} (type it as 'Refund received now').");
+
+        var left = credit;
+        foreach (var g in unpaid)
+        {
+            if (left <= 0) break;
+            var part = Math.Min(left, g.DueAmount);
+            g.PaidAmount += part;
+            g.DueAmount -= part;
+            left -= part;
+        }
+
+        receipt.Total = -total;
+        receipt.PaidAmount = -total;       // fully settled: by credit and/or refund
+        receipt.DueAmount = 0;
+
+        if (refund > 0)
+        {
+            if (r.PaymentMethodId is null)
+                throw new BusinessRuleException("Choose how the supplier refunds you.");
+
+            var method = await db.PaymentMethods.AsNoTracking()
+                             .FirstOrDefaultAsync(m => m.Id == r.PaymentMethodId && m.IsActive == true)
+                         ?? throw new BusinessRuleException("This payment method is not available.");
+
+            if (string.Equals(method.Name, "Cash", StringComparison.OrdinalIgnoreCase) &&
+                await _shifts.IsShiftRequiredAsync() && await _shifts.GetOpenShiftAsync() is null)
+                throw new BusinessRuleException("Open your shift (cash drawer) first: this cash goes into your drawer.");
+
+            var supplierPayment = new SupplierPayment
+            {
+                Id = Guid.CreateVersion7(),
+                BranchId = branchId,
+                SupplierId = supplier.Id,
+                ReceiptId = receipt.Id,
+                PaymentMethodId = method.Id,
+                Amount = -refund,                // minus: money came IN from the supplier
+                ReferenceNo = Clean(r.Reference),
+                PaidAt = now,
+                CreatedByUserId = _user.UserId
+            };
+            db.SupplierPayments.Add(supplierPayment);
+
+            db.Payments.Add(new Payment
+            {
+                Id = Guid.CreateVersion7(),
+                BranchId = branchId,
+                SaleId = null,
+                CustomerId = null,
+                PaymentMethodId = method.Id,
+                Direction = "In",
+                Amount = refund,
+                ReferenceNo = $"SUPREFUND:{supplierPayment.Id}",
+                PaidAt = now,
+                CreatedByUserId = _user.UserId
+            });
+        }
+
+        AddAudit(db, "PurchaseReturned", "GoodsReceipt", receipt.Id);
+        await db.SaveChangesAsync();
+
+        return new ReturnResult(receipt.Id, receipt.ReceiptNo, total, credit, refund);
+    }
+
+    private StockMovement NewReturnMovement(Guid branchId, Guid variantId, decimal qty, decimal cost,
+        GoodsReceipt receipt, Guid? serialItemId, Guid? batchId) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        BranchId = branchId,
+        VariantId = variantId,
+        BatchId = batchId,
+        SerialItemId = serialItemId,
+        QtyChange = -qty,
+        MovementType = "PurchaseReturn",
+        ReferenceType = "GoodsReceipt",
+        ReferenceId = receipt.Id,
+        Reason = $"Returned to supplier {receipt.ReceiptNo}",
+        UnitCost = cost,
+        CreatedByUserId = _user.UserId,
+        CreatedAt = DateTime.UtcNow
+    };
+
+    private static async Task<bool> AllowNegativeAsync(ShopPosDbContext db)
+    {
+        var value = (await db.Settings.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SettingKey == "stock.allow_negative"))?.SettingValue;
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
     // ================================================================ helpers
 
     private StockMovement NewMovement(Guid branchId, Guid variantId, decimal qty, decimal cost,
